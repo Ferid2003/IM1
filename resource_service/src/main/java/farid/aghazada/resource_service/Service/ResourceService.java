@@ -14,6 +14,7 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import farid.aghazada.resource_service.Client.SongServiceClient;
 import farid.aghazada.resource_service.DTO.SongMetadataRequestDTO;
@@ -63,6 +64,7 @@ public class ResourceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Resource with ID=" + id + " not found"));
     }
 
+    @Transactional
     public Map<String, List<Integer>> deleteResources(String csvIds) {
         if (csvIds.length() > 200) {
             throw new CSVLengthRestrictionException(
@@ -74,12 +76,8 @@ public class ResourceService {
                 .toList();
         resourceRepository.deleteAllByIdInBatch(existingIds);
         if (!existingIds.isEmpty()) {
-            try {
-                String existingCsv = existingIds.stream().map(String::valueOf).collect(Collectors.joining(","));
-                songServiceClient.deleteSongMetadata(existingCsv);
-            } catch (Exception ignored) {
-                // ponytail: best-effort cascade, resource deletion must still succeed if song-service is unavailable
-            }
+            String existingCsv = existingIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+            songServiceClient.deleteSongMetadata(existingCsv);
         }
         return Map.of("ids", existingIds);
     }
